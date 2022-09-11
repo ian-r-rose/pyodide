@@ -1,0 +1,38 @@
+package:
+  name: gdal 
+  version: 3.5.1
+
+source:
+  url: https://github.com/OSGeo/gdal/releases/download/v3.5.1/gdal-3.5.1.tar.gz
+  sha256: 7c4406ca010dc8632703a0a326f39e9db25d9f1f6ebaaeca64a963e3fac123d1
+
+requirements:
+  host:
+    - libproj
+    - libiconv
+
+build:
+  sharedlibrary: true
+  script: |
+    echo "set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)" > SupportSharedLib.cmake
+
+    mkdir build
+    cd build
+    LDFLAGS="${SIDE_MODULE_LDFLAGS}" emcmake cmake .. \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_C_FLAGS="-fPIC" \
+      -DCMAKE_CXX_FLAGS="-fPIC" \
+      -DCMAKE_INSTALL_PREFIX=${WASM_LIBRARY_DIR} \
+      -DCMAKE_PROJECT_INCLUDE=SupportSharedLib.cmake \
+      -DGDAL_USE_HDF5=OFF \
+      -DGDAL_USE_SQLITE3=OFF \
+      -DGDAL_USE_ZLIB=OFF \
+      -DBUILD_APPS=OFF \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DPROJ_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DPROJ_LIBRARY_RELEASE=${WASM_LIBRARY_DIR}/lib/libproj.a \
+      -DIconv_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DIconv_LIBRARY=${WASM_LIBRARY_DIR}/lib/libiconv.a \
+      -DHAVE_FSEEK64=0 -DHAVE_FTELL64=0 \
+      -DSIZEOF_INT=4 -DSIZEOF_UNSIGNED_LONG=4 -DSIZEOF_VOIDP=4
+
+    emmake make -j ${PYODIDE_JOBS:-3}
+    emmake make install
