@@ -10,29 +10,41 @@ requirements:
   host:
     - libproj
     - libiconv
+    - geos
 
 build:
   sharedlibrary: true
   script: |
     echo "set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)" > SupportSharedLib.cmake
 
-    mkdir build
+    mkdir -p dist
+    mkdir -p build
     cd build
+    # GDAL vendors a number of libraries like zlib, geotiff, and we have the option
+    # of just using those, or linking to system ones that might be shared with other
+    # packages. It's easier for now to stick with the vendored copies, at the cost
+    # of extra compilation and bundle size.
     LDFLAGS="${SIDE_MODULE_LDFLAGS}" emcmake cmake .. \
       -DCMAKE_BUILD_TYPE=Release \
       -DCMAKE_C_FLAGS="-fPIC" \
       -DCMAKE_CXX_FLAGS="-fPIC" \
       -DCMAKE_INSTALL_PREFIX=${WASM_LIBRARY_DIR} \
       -DCMAKE_PROJECT_INCLUDE=SupportSharedLib.cmake \
+      -DGDAL_USE_INTERNAL_LIBS=ON \
       -DGDAL_USE_HDF5=OFF \
       -DGDAL_USE_SQLITE3=OFF \
-      -DGDAL_USE_ZLIB=OFF \
+      -DGDAL_USE_ZLIB=ON \
+      -DGDAL_USE_ZLIB_INTERNAL=OFF \
       -DBUILD_APPS=OFF \
       -DBUILD_SHARED_LIBS=OFF \
       -DPROJ_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DPROJ_LIBRARY_RELEASE=${WASM_LIBRARY_DIR}/lib/libproj.a \
       -DIconv_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DIconv_LIBRARY=${WASM_LIBRARY_DIR}/lib/libiconv.a \
+      -DGEOS_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DGEOS_LIBRARY=${WASM_LIBRARY_DIR}/lib/libgeos.so \
+      -DZLIB_INCLUDE_DIR=${WASM_LIBRARY_DIR}/include -DZLIB_LIBRARY_RELEASE=${WASM_LIBRARY_DIR}/lib/libz.a \
       -DHAVE_FSEEK64=0 -DHAVE_FTELL64=0 \
       -DSIZEOF_INT=4 -DSIZEOF_UNSIGNED_LONG=4 -DSIZEOF_VOIDP=4
 
     emmake make -j ${PYODIDE_JOBS:-3}
     emmake make install
+
+    cp libgdal.a ../dist
